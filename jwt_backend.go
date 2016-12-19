@@ -99,7 +99,7 @@ func (backend *JWTAuthenticationBackend) IsInBlacklist(token string) bool {
 	//	return false
 	//}
 
-	return true
+	return false
 }
 
 func getPrivateKey() *rsa.PrivateKey {
