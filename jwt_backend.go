@@ -41,7 +41,7 @@ func InitJWTAuthenticationBackend() *JWTAuthenticationBackend {
 	return authBackendInstance
 }
 
-func (backend *JWTAuthenticationBackend) GenerateToken(userId string) (string, error) {
+func (backend *JWTAuthenticationBackend) GenerateToken(userId string) (tpi_data.AuthToken, error) {
 	token := jwt.New(jwt.SigningMethodRS512)
 
 	claims := token.Claims.(jwt.MapClaims)
@@ -52,9 +52,9 @@ func (backend *JWTAuthenticationBackend) GenerateToken(userId string) (string, e
 	tokenString, err := token.SignedString(backend.privateKey)
 	if err != nil {
 		panic(err)
-		return "", err
+		return tpi_data.AuthToken{""}, err
 	}
-	return tokenString, nil
+	return tpi_data.AuthToken{tokenString}, nil
 }
 
 func (backend *JWTAuthenticationBackend) Authenticate(c context.Context, user *tpi_data.User) bool {
@@ -91,15 +91,19 @@ func (backend *JWTAuthenticationBackend) Logout(tokenString string, token *jwt.T
 	return nil
 }
 
-func (backend *JWTAuthenticationBackend) IsInBlacklist(token string) bool {
+func (backend *JWTAuthenticationBackend) IsInBlacklist(c context.Context, token string) bool {
 	//redisConn := redis.Connect()
 	//redisToken, _ := redisConn.GetValue(token)
 
 	//if redisToken == nil {
 	//	return false
 	//}
-
-	return false
+	adsc := tpi_data.NewDSwc(c)
+	tok, err := adsc.GetToken(token)
+	if tok == "" || err != nil {
+		return false
+	}
+	return true
 }
 
 func getPrivateKey() *rsa.PrivateKey {
