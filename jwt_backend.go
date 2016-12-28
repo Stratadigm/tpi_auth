@@ -23,6 +23,16 @@ type JWTAuthenticationBackend struct {
 	PublicKey  *rsa.PublicKey
 }
 
+type TPIClaims struct {
+	*jwt.StandardClaims
+	UserInfo
+}
+
+type UserInfo struct {
+	Email string
+	Type  string
+}
+
 const (
 	tokenDuration = 72
 	expireOffset  = 3600
@@ -44,11 +54,21 @@ func InitJWTAuthenticationBackend() *JWTAuthenticationBackend {
 func (backend *JWTAuthenticationBackend) GenerateToken(userId string) (tpi_data.AuthToken, error) {
 	token := jwt.New(jwt.SigningMethodRS512)
 
-	claims := token.Claims.(jwt.MapClaims)
+	/*claims := token.Claims.(jwt.MapClaims)
 	claims["exp"] = time.Now().Add(time.Hour * time.Duration(tpi_settings.Get().JWTExpirationDelta)).Unix()
 	claims["iat"] = time.Now().Unix()
 	claims["sub"] = userId
 	token.Claims = claims
+	*/
+	token.Claims = &TPIClaims{
+		&jwt.StandardClaims{
+			// set the expire time
+			// see http://tools.ietf.org/html/draft-ietf-oauth-json-web-token-20#section-4.1.4
+			ExpiresAt: time.Now().Add(time.Minute * 5).Unix(),
+			//ExpiresAt: time.Now().Add(time.Hour * time.Duration(tpi_settings.Get().JWTExpirationDelta)).Unix(),
+		},
+		UserInfo{userId, "Contributor"},
+	}
 	tokenString, err := token.SignedString(backend.privateKey)
 	if err != nil {
 		panic(err)
@@ -99,8 +119,7 @@ func (backend *JWTAuthenticationBackend) IsInBlacklist(c context.Context, token 
 	//	return false
 	//}
 	adsc := tpi_data.NewDSwc(c)
-	tok, err := adsc.GetToken(token)
-	if tok == "" || err != nil {
+	if err := adsc.GetToken(token); err != nil {
 		return false
 	}
 	return true
